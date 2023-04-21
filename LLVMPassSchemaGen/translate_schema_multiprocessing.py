@@ -105,11 +105,14 @@ def first_child(DIE):
 def collect_type(DIE):
     base_DIE = DIE.get_DIE_from_attribute('DW_AT_type')
     try:
-        while base_DIE.tag != 'DW_TAG_base_type' and base_DIE.tag != 'DW_TAG_pointer_type':
+        while base_DIE.tag not in \
+              ['DW_TAG_base_type', 'DW_TAG_pointer_type', 'DW_TAG_structure_type',
+               'DW_TAG_union_type', 'DW_TAG_array_type']:
             #by default reference the first member in a structure type
-            if base_DIE.tag == 'DW_TAG_structure_type':
-                base_DIE = first_child(base_DIE)
+            # if base_DIE.tag == 'DW_TAG_structure_type':
+            #     base_DIE = first_child(base_DIE)
             base_DIE = base_DIE.get_DIE_from_attribute('DW_AT_type')
+        # print(base_DIE)
         return base_DIE
     except:
         return None
@@ -399,6 +402,7 @@ def search_variable_live_locations(CU, line, variable, valtype, file_index, func
 
     if not DIE:
         return None
+
     type_die = collect_type(DIE)
 
     try:
