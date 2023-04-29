@@ -105,12 +105,9 @@ def first_child(DIE):
 def collect_type(DIE):
     base_DIE = DIE.get_DIE_from_attribute('DW_AT_type')
     try:
-        while base_DIE.tag not in \
-              ['DW_TAG_base_type', 'DW_TAG_pointer_type', 'DW_TAG_structure_type',
-               'DW_TAG_union_type', 'DW_TAG_array_type']:
-            #by default reference the first member in a structure type
-            # if base_DIE.tag == 'DW_TAG_structure_type':
-            #     base_DIE = first_child(base_DIE)
+        while base_DIE.tag not in ['DW_TAG_base_type', 'DW_TAG_pointer_type', \
+                                   "DW_TAG_structure_type", "DW_TAG_array_type",
+                                   "DW_TAG_union_type"]:
             base_DIE = base_DIE.get_DIE_from_attribute('DW_AT_type')
         # print(base_DIE)
         return base_DIE
@@ -390,6 +387,22 @@ def search_member_offset(var_DIE, member_name):
 
     return offset
 
+def get_arr_base_type(DIE):
+    base_DIE = DIE.get_DIE_from_attribute('DW_AT_type')
+    try:
+        while base_DIE.tag not in ['DW_TAG_base_type', 'DW_TAG_pointer_type', \
+                                   "DW_TAG_structure_type", "DW_TAG_union_type"]:
+            base_DIE = base_DIE.get_DIE_from_attribute('DW_AT_type')
+        return base_DIE
+    except:
+        return None 
+
+def get_arr_num_elems(arr_subranges_li):
+    arr_num_elems = 1
+    for subrange in arr_subranges_li:
+        arr_num_elems *= subrange.attributes.get('DW_AT_count', None).value
+    return arr_num_elems
+
 def search_variable_live_locations(CU, line, variable, valtype, file_index, func, lineno):
     member = re.search('(\w+)[\\.]([\w\\.]+)', variable)
     member_offset = None
@@ -406,7 +419,13 @@ def search_variable_live_locations(CU, line, variable, valtype, file_index, func
     type_die = collect_type(DIE)
 
     try:
-        type_size = type_die.attributes.get('DW_AT_byte_size', None).value
+        if type_die.tag != "DW_TAG_array_type":
+            type_size = type_die.attributes.get('DW_AT_byte_size', None).value
+        else:
+            arr_base_type = get_arr_base_type(type_die)
+            arr_base_type_size = arr_base_type.attributes.get('DW_AT_byte_size', None).value
+            arr_num_elems = get_arr_num_elems(list(CU.iter_DIE_children(type_die)))
+            type_size = arr_base_type_size * arr_num_elems
     except Exception as ex:
         type_size = 8
 
