@@ -6,6 +6,7 @@ import argparse
 import re
 import shlex
 import subprocess
+import traceback
 
 # If pyelftools is not installed, the example can also run from the root or
 # examples/ dir of the source distribution.
@@ -419,14 +420,25 @@ def search_variable_live_locations(CU, line, variable, valtype, file_index, func
     type_die = collect_type(DIE)
 
     try:
-        if type_die.tag != "DW_TAG_array_type":
+        if type_die.tag == "DW_TAG_pointer_type":
+            type_size = 8
+        elif type_die.tag != "DW_TAG_array_type":
             type_size = type_die.attributes.get('DW_AT_byte_size', None).value
         else:
             arr_base_type = get_arr_base_type(type_die)
-            arr_base_type_size = arr_base_type.attributes.get('DW_AT_byte_size', None).value
+            if arr_base_type.tag == "DW_TAG_pointer_type":
+                arr_base_type_size = 8
+            else:
+                arr_base_type_size = arr_base_type.attributes.get('DW_AT_byte_size', None).value
             arr_num_elems = get_arr_num_elems(list(CU.iter_DIE_children(type_die)))
             type_size = arr_base_type_size * arr_num_elems
     except Exception as ex:
+        print(traceback.format_exc())
+        if type_die.tag != "DW_TAG_pointer_type":
+            print("We failed to get the size of\n", type_die)
+            arr_base_type = get_arr_base_type(type_die)
+            print("Base type was\n", arr_base_type)
+            print(ex)
         type_size = 8
 
     pc_range = pc_range_from_parent(DIE)
